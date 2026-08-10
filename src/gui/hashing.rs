@@ -11,6 +11,8 @@ use zeus_widgets::{Button, ComboBox, Label, Modal, SecureTextEdit, Zeroize};
 #[cfg(target_os = "linux")]
 use zeus_ui_components::QRScanner;
 
+const MAX_ROUNDS: u64 = 10_000;
+
 #[derive(Clone, PartialEq, Eq)]
 pub enum HashAlgorithm {
     Sha3_224,
@@ -61,7 +63,7 @@ impl TextHashingUi {
             show_qr: false,
             qr_loading: false,
             algorithm: HashAlgorithm::Sha3_224,
-            rounds: 0,
+            rounds: 1,
             input_text: SecureString::new_with_capacity(128).unwrap(),
             output_hash: SecureString::new_with_capacity(128).unwrap(),
             input_len: 0,
@@ -120,7 +122,7 @@ impl TextHashingUi {
 
                         ui.vertical(|ui| {
                             ui.spacing_mut().item_spacing.y = 3.0;
-                            let text = RichText::new("Rounds").size(theme.text_sizes.normal);
+                            let text = RichText::new("Rounds (Max = 10,000)").size(theme.text_sizes.small);
                             ui.label(text);
 
                             let rounds = self.rounds;
@@ -133,7 +135,8 @@ impl TextHashingUi {
                                 .font(FontId::proportional(theme.text_sizes.small))
                                 .show(ui);
 
-                            self.rounds = rounds_str.parse::<u64>().unwrap_or(0);
+                            let new_rounds = rounds_str.parse::<u64>().unwrap_or(1);
+                            self.rounds = new_rounds.min(MAX_ROUNDS);
 
                             if res.response.changed() {
                                 should_calculate = true;
@@ -335,7 +338,7 @@ impl TextHashingUi {
 
         ComboBox::new("select_algo", label)
             .visuals(visuals)
-            .width(150.0)
+            .width(110.0)
             .show_ui(ui, |ui| {
                 ui.spacing_mut().button_padding = vec2(5.0, 5.0);
 

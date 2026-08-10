@@ -17,6 +17,7 @@ pub fn show(gui: &mut GUI, ui: &mut Ui) {
 
     frame.show(ui, |ui| {
         ui.vertical_centered(|ui| {
+            ui.spacing_mut().item_spacing.y = 10.0;
             ui.spacing_mut().button_padding = vec2(8.0, 6.0);
 
             let text_size = gui.theme.text_sizes.normal;
