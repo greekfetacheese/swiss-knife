@@ -1,7 +1,10 @@
 use crate::gui::SHARED_GUI;
 use eframe::egui::{
-    Align, Align2, FontId, Frame, Layout, Margin, Order, RichText, Spinner, Ui, Window, vec2,
+    Align, Align2, FontId, Frame, Layout, Margin, Order, RichText, ScrollArea, Spinner, Ui, Window,
+    vec2,
 };
+use hmac::digest::block_api::BlockSizeUser;
+use hmac::{KeyInit, Mac, SimpleHmac};
 use ncrypt_me::secure_types::SecureString;
 use sha3::{Digest, Sha3_224, Sha3_256, Sha3_384, Sha3_512};
 use zeus_theme::Theme;
@@ -48,6 +51,8 @@ pub struct TextHashingUi {
     qr_loading: bool,
     algorithm: HashAlgorithm,
     rounds: u64,
+    pub hmac_key: SecureString,
+    hmac_len: usize,
     pub input_text: SecureString,
     input_len: usize,
     pub output_hash: SecureString,
@@ -64,8 +69,10 @@ impl TextHashingUi {
             qr_loading: false,
             algorithm: HashAlgorithm::Sha3_224,
             rounds: 1,
+            hmac_key: SecureString::new_with_capacity(128).unwrap(),
             input_text: SecureString::new_with_capacity(128).unwrap(),
             output_hash: SecureString::new_with_capacity(128).unwrap(),
+            hmac_len: 0,
             input_len: 0,
             output_qr: QrImage::empty_with_error("No QR code generated yet".to_string()),
             #[cfg(target_os = "linux")]
@@ -109,10 +116,10 @@ impl TextHashingUi {
                 let mut should_calculate = false;
 
                 ui.vertical_centered(|ui| {
-                    ui.spacing_mut().item_spacing.y = 25.0;
+                    ui.spacing_mut().item_spacing.y = 20.0;
                     ui.spacing_mut().button_padding = vec2(10.0, 8.0);
 
-                    ui.add_space(10.0);
+                    ui.add_space(5.0);
 
                     let size = vec2(300.0, 30.0);
                     ui.allocate_ui_with_layout(size, Layout::left_to_right(Align::Center), |ui| {
@@ -122,7 +129,8 @@ impl TextHashingUi {
 
                         ui.vertical(|ui| {
                             ui.spacing_mut().item_spacing.y = 3.0;
-                            let text = RichText::new("Rounds (Max = 10,000)").size(theme.text_sizes.small);
+                            let text =
+                                RichText::new("Rounds (Max = 10,000)").size(theme.text_sizes.small);
                             ui.label(text);
 
                             let rounds = self.rounds;
@@ -144,23 +152,57 @@ impl TextHashingUi {
                         });
                     });
 
+                    // Optional HMAC key, empty means plain hash
+                    let mut hmac_len = self.hmac_len;
+                    ui.vertical_centered(|ui| {
+                        ui.spacing_mut().item_spacing.y = 3.0;
+                        let text =
+                            RichText::new("HMAC Key (optional)").size(theme.text_sizes.normal);
+                        ui.label(text);
+
+                        let visuals = theme.text_edit_visuals();
+                        self.hmac_key.secure_mut(|hmac_key| {
+                            let res = SecureTextEdit::singleline(hmac_key)
+                                .id_salt("hmac_key")
+                                .hint_text(
+                                    RichText::new("Leave empty for plain hash")
+                                        .size(theme.text_sizes.small),
+                                )
+                                .visuals(visuals)
+                                .desired_width(300.0)
+                                .margin(Margin::same(10))
+                                .font(FontId::proportional(theme.text_sizes.small))
+                                .show(ui);
+
+                            if res.response.changed() {
+                                hmac_len = hmac_key.char_len();
+                                should_calculate = true;
+                            }
+                        });
+                    });
+
+                    self.hmac_len = hmac_len;
+
                     ui.label(RichText::new("Input Text").size(theme.text_sizes.large));
 
                     let visuals = theme.text_edit_visuals();
 
                     let size = vec2(300.0, 300.0);
                     ui.allocate_ui_with_layout(size, Layout::left_to_right(Align::Min), |ui| {
-                        self.input_text.secure_mut(|input_text| {
-                            let text_edit = SecureTextEdit::multiline(input_text)
-                                .visuals(visuals)
-                                .desired_width(300.0)
-                                .desired_rows(5)
-                                .margin(Margin::same(10))
-                                .font(FontId::proportional(theme.text_sizes.normal));
-                            let output = text_edit.show(ui);
-                            if output.response.changed() {
-                                should_calculate = true;
-                            }
+                        // Scroll area so long texts dont overflow the ui
+                        ScrollArea::vertical().max_height(100.0).show(ui, |ui| {
+                            self.input_text.secure_mut(|input_text| {
+                                let text_edit = SecureTextEdit::multiline(input_text)
+                                    .visuals(visuals)
+                                    .desired_width(300.0)
+                                    .desired_rows(4)
+                                    .margin(Margin::same(10))
+                                    .font(FontId::proportional(theme.text_sizes.small));
+                                let output = text_edit.show(ui);
+                                if output.response.changed() {
+                                    should_calculate = true;
+                                }
+                            });
                         });
 
                         #[cfg(target_os = "linux")]
@@ -185,15 +227,21 @@ impl TextHashingUi {
                         self.calculate_hash();
                     }
 
-                    ui.label(RichText::new("Hash Output").size(theme.text_sizes.large));
+                    let output_label = if self.hmac_len == 0 {
+                        "Hash Output"
+                    } else {
+                        "HMAC Output"
+                    };
+
+                    ui.label(RichText::new(output_label).size(theme.text_sizes.large));
 
                     self.output_hash.secure_mut(|output_hash| {
                         let text_edit = SecureTextEdit::multiline(output_hash)
                             .visuals(visuals)
                             .desired_width(300.0)
-                            .desired_rows(5)
+                            .desired_rows(4)
                             .margin(Margin::same(10))
-                            .font(FontId::proportional(theme.text_sizes.normal));
+                            .font(FontId::proportional(theme.text_sizes.small));
                         text_edit.show(ui);
                     });
 
@@ -295,36 +343,41 @@ impl TextHashingUi {
 
         if rounds <= 256 {
             self.input_text.unlock_str(|input_text| {
-                self.input_len = input_text.chars().count();
+                self.hmac_key.unlock_str(|hmac_key| {
+                    self.input_len = input_text.chars().count();
 
-                if input_text.is_empty() {
-                    return;
-                }
+                    if input_text.is_empty() {
+                        return;
+                    }
 
-                let output = hash(self.algorithm.clone(), input_text, self.rounds);
+                    let output = hash(self.algorithm.clone(), input_text, hmac_key, self.rounds);
 
-                self.output_hash = output.into();
+                    self.output_hash = output.into();
+                });
             });
         } else {
             let input_text = self.input_text.clone();
+            let hmac_key = self.hmac_key.clone();
             let algo = self.algorithm.clone();
 
             std::thread::spawn(move || {
                 input_text.unlock_str(|input_text| {
-                    let chars = input_text.chars().count();
+                    hmac_key.unlock_str(|hmac_key| {
+                        let chars = input_text.chars().count();
 
-                    SHARED_GUI.write(|gui| {
-                        gui.text_hashing_ui.input_len = chars;
-                    });
+                        SHARED_GUI.write(|gui| {
+                            gui.text_hashing_ui.input_len = chars;
+                        });
 
-                    if chars == 0 {
-                        return;
-                    }
+                        if chars == 0 {
+                            return;
+                        }
 
-                    let output = hash(algo, input_text, rounds);
+                        let output = hash(algo, input_text, hmac_key, rounds);
 
-                    SHARED_GUI.write(|gui| {
-                        gui.text_hashing_ui.output_hash = output.into();
+                        SHARED_GUI.write(|gui| {
+                            gui.text_hashing_ui.output_hash = output.into();
+                        });
                     });
                 });
             });
@@ -360,14 +413,23 @@ impl TextHashingUi {
     }
 }
 
-fn hash(algo: HashAlgorithm, input: &str, rounds: u64) -> String {
+fn hash(algo: HashAlgorithm, input: &str, key: &str, rounds: u64) -> String {
     let rounds = if rounds == 0 { 1 } else { rounds };
 
-    match algo {
-        HashAlgorithm::Sha3_224 => hash_rounds::<Sha3_224>(input, rounds),
-        HashAlgorithm::Sha3_256 => hash_rounds::<Sha3_256>(input, rounds),
-        HashAlgorithm::Sha3_384 => hash_rounds::<Sha3_384>(input, rounds),
-        HashAlgorithm::Sha3_512 => hash_rounds::<Sha3_512>(input, rounds),
+    if key.is_empty() {
+        match algo {
+            HashAlgorithm::Sha3_224 => hash_rounds::<Sha3_224>(input, rounds),
+            HashAlgorithm::Sha3_256 => hash_rounds::<Sha3_256>(input, rounds),
+            HashAlgorithm::Sha3_384 => hash_rounds::<Sha3_384>(input, rounds),
+            HashAlgorithm::Sha3_512 => hash_rounds::<Sha3_512>(input, rounds),
+        }
+    } else {
+        match algo {
+            HashAlgorithm::Sha3_224 => hmac_rounds::<Sha3_224>(key, input, rounds),
+            HashAlgorithm::Sha3_256 => hmac_rounds::<Sha3_256>(key, input, rounds),
+            HashAlgorithm::Sha3_384 => hmac_rounds::<Sha3_384>(key, input, rounds),
+            HashAlgorithm::Sha3_512 => hmac_rounds::<Sha3_512>(key, input, rounds),
+        }
     }
 }
 
@@ -376,6 +438,22 @@ fn hash_rounds<D: Digest>(input: &str, rounds: u64) -> String {
 
     for _ in 0..rounds {
         current = hex::encode(D::digest(current.as_bytes()));
+    }
+
+    current
+}
+
+fn hmac_rounds<D>(key: &str, input: &str, rounds: u64) -> String
+where
+    D: Digest + BlockSizeUser + Clone,
+{
+    let mut current = input.to_string();
+
+    for _ in 0..rounds {
+        let mut mac =
+            SimpleHmac::<D>::new_from_slice(key.as_bytes()).expect("HMAC accepts any key length");
+        mac.update(current.as_bytes());
+        current = hex::encode(mac.finalize().into_bytes());
     }
 
     current

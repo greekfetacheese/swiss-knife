@@ -17,6 +17,8 @@ zeus-ui-components = {version = "0.4", features = ["secure-types", "qr-scanner"]
 
 # Crypto
 sha3 = "0.12"
+hmac = {version = "0.13.0", features = ["zeroize"]}
+hybrid-array = {version = "0.4.14", features = ["zeroize"]}
 hex = "0.4"
 ncrypt-me = "0.3"
 

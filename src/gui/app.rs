@@ -53,6 +53,7 @@ impl SwissKnifeApp {
             SHARED_GUI.write(|gui| {
                 gui.file_encryption_ui.credentials_form.erase();
                 gui.text_hashing_ui.input_text.erase();
+                gui.text_hashing_ui.hmac_key.erase();
                 gui.text_hashing_ui.output_hash.erase();
             });
 
@@ -84,16 +85,6 @@ impl eframe::App for SwissKnifeApp {
             let bg_color = theme.colors.bg;
             let panel_frame = Frame::new().fill(bg_color);
             let top_frame = Frame::new().inner_margin(5).fill(bg_color);
-
-            Panel::top("top_panel")
-                .min_size(30.0)
-                .max_size(30.0)
-                .resizable(false)
-                .show_separator_line(false)
-                .frame(top_frame)
-                .show(ui, |ui| {
-                    gui.show_top_panel(ui);
-                });
 
             Panel::left("left_panel")
                 .max_size(140.0)
