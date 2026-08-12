@@ -49,13 +49,18 @@ pub struct TextHashingUi {
     open: bool,
     show_qr: bool,
     qr_loading: bool,
+    hash_calculating: bool,
+    /// Bumped on every hash request. Background workers only commit if still current.
+    hash_epoch: u64,
+    /// True while a background hash worker thread is alive (single-flight).
+    hash_worker_active: bool,
     algorithm: HashAlgorithm,
     rounds: u64,
-    pub hmac_key: SecureString,
+    hmac_key: SecureString,
     hmac_len: usize,
-    pub input_text: SecureString,
+    input_text: SecureString,
     input_len: usize,
-    pub output_hash: SecureString,
+    output_hash: SecureString,
     output_qr: QrImage,
     #[cfg(target_os = "linux")]
     qr_scanner: QRScanner,
@@ -67,6 +72,9 @@ impl TextHashingUi {
             open: false,
             show_qr: false,
             qr_loading: false,
+            hash_calculating: false,
+            hash_epoch: 0,
+            hash_worker_active: false,
             algorithm: HashAlgorithm::Sha3_224,
             rounds: 1,
             hmac_key: SecureString::new_with_capacity(128).unwrap(),
@@ -90,6 +98,12 @@ impl TextHashingUi {
 
     pub fn close(&mut self) {
         self.open = false;
+    }
+
+    pub fn erase(&mut self) {
+        self.hmac_key.erase();
+        self.input_text.erase();
+        self.output_hash.erase();
     }
 
     pub fn show(&mut self, theme: &Theme, ui: &mut Ui) {
@@ -233,7 +247,14 @@ impl TextHashingUi {
                         "HMAC Output"
                     };
 
-                    ui.label(RichText::new(output_label).size(theme.text_sizes.large));
+                    let size = vec2(100.0, 15.0);
+                    ui.allocate_ui_with_layout(size, Layout::left_to_right(Align::Center), |ui| {
+                        ui.label(RichText::new(output_label).size(theme.text_sizes.large));
+
+                        if self.hash_calculating {
+                            ui.add(Spinner::new().size(15.0).color(theme.colors.text));
+                        }
+                    });
 
                     self.output_hash.secure_mut(|output_hash| {
                         let text_edit = SecureTextEdit::multiline(output_hash)
@@ -255,7 +276,7 @@ impl TextHashingUi {
                         let text = RichText::new("Copy").size(theme.text_sizes.normal);
                         let button = Button::new(text).visuals(visuals).min_size(btn_size);
 
-                        if ui.add(button).clicked() {
+                        if ui.add_enabled(!self.hash_calculating, button).clicked() {
                             self.output_hash.unlock_str(|text| {
                                 ui.ctx().copy_text(text.to_owned());
                             })
@@ -264,7 +285,7 @@ impl TextHashingUi {
                         let text = RichText::new("QR Code").size(theme.text_sizes.normal);
                         let button = Button::new(text).visuals(visuals).min_size(btn_size);
 
-                        if ui.add(button).clicked() {
+                        if ui.add_enabled(!self.hash_calculating, button).clicked() {
                             self.encode_qr();
                             self.show_qr = true;
                         }
@@ -339,6 +360,11 @@ impl TextHashingUi {
     }
 
     fn calculate_hash(&mut self) {
+        // Invalidate in-flight work. Only the latest epoch may clear `hash_calculating`
+        // or publish output — otherwise a slower older job can drop the loading state
+        // while a newer hash is still running (common when typing fast in debug).
+        self.hash_epoch = self.hash_epoch.wrapping_add(1);
+        self.hash_calculating = true;
         let rounds = self.rounds;
 
         if rounds <= 256 {
@@ -347,41 +373,76 @@ impl TextHashingUi {
                     self.input_len = input_text.chars().count();
 
                     if input_text.is_empty() {
+                        self.hash_calculating = false;
                         return;
                     }
 
-                    let output = hash(self.algorithm.clone(), input_text, hmac_key, self.rounds);
+                    let output = hash(self.algorithm.clone(), input_text, hmac_key, rounds);
 
                     self.output_hash = output.into();
+                    self.hash_calculating = false;
                 });
             });
-        } else {
-            let input_text = self.input_text.clone();
-            let hmac_key = self.hmac_key.clone();
-            let algo = self.algorithm.clone();
+            return;
+        }
 
-            std::thread::spawn(move || {
+        // Single-flight: if a worker is already out, the epoch bump is enough —
+        // it re-reads the latest inputs when the current hash finishes.
+        if self.hash_worker_active {
+            return;
+        }
+
+        self.hash_worker_active = true;
+
+        std::thread::spawn(move || {
+            loop {
+                let (epoch, algo, rounds, input_text, hmac_key) = SHARED_GUI.write(|gui| {
+                    let h = &gui.text_hashing_ui;
+                    (
+                        h.hash_epoch,
+                        h.algorithm.clone(),
+                        h.rounds,
+                        h.input_text.clone(),
+                        h.hmac_key.clone(),
+                    )
+                });
+
+                let mut chars = 0usize;
+                let mut output: Option<String> = None;
                 input_text.unlock_str(|input_text| {
                     hmac_key.unlock_str(|hmac_key| {
-                        let chars = input_text.chars().count();
-
-                        SHARED_GUI.write(|gui| {
-                            gui.text_hashing_ui.input_len = chars;
-                        });
-
-                        if chars == 0 {
-                            return;
+                        chars = input_text.chars().count();
+                        if chars > 0 {
+                            output = Some(hash(algo, input_text, hmac_key, rounds));
                         }
-
-                        let output = hash(algo, input_text, hmac_key, rounds);
-
-                        SHARED_GUI.write(|gui| {
-                            gui.text_hashing_ui.output_hash = output.into();
-                        });
                     });
                 });
-            });
-        }
+
+                let finished = SHARED_GUI.write(|gui| {
+                    let h = &mut gui.text_hashing_ui;
+                    if h.hash_epoch != epoch {
+                        // Superseded while hashing — loop and pick up latest state.
+                        return false;
+                    }
+
+                    h.input_len = chars;
+
+                    if let Some(output) = output {
+                        h.output_hash = output.into();
+                    }
+
+                    h.hash_calculating = false;
+                    h.hash_worker_active = false;
+                    true
+                });
+
+                SHARED_GUI.request_repaint();
+
+                if finished {
+                    break;
+                }
+            }
+        });
     }
 
     fn select_algorithm(&mut self, theme: &Theme, ui: &mut Ui) {

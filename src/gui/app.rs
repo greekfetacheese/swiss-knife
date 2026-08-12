@@ -52,9 +52,7 @@ impl SwissKnifeApp {
         std::thread::spawn(move || {
             SHARED_GUI.write(|gui| {
                 gui.file_encryption_ui.credentials_form.erase();
-                gui.text_hashing_ui.input_text.erase();
-                gui.text_hashing_ui.hmac_key.erase();
-                gui.text_hashing_ui.output_hash.erase();
+                gui.text_hashing_ui.erase();
             });
 
             // Allow the next close_requested through, then re-request close.
