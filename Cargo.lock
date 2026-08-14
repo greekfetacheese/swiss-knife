@@ -4533,7 +4533,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "swiss-knife"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "eframe",
  "egui",
@@ -6282,9 +6282,9 @@ dependencies = [
 
 [[package]]
 name = "zeus-widgets"
-version = "0.4.2"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc284663b709d14d9cb9549ece9a1e716f40e839bef1c8738269fa5b0e87436e"
+checksum = "d9882b0e6b25422c37a10b4c039911a76e611bfd5be06a98b38b6e2ea99aeacd"
 dependencies = [
  "egui",
  "secure-types",
