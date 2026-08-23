@@ -10,10 +10,8 @@ edition = "2024"
 egui = "0.36"
 eframe = {version = "0.36", features = ["wgpu"]}
 egui_extras = { version = "0.36", features = ["image"] }
-egui-elegance = "0.15"
-zeus-theme = "0.4"
-zeus-widgets = "0.4"
-zeus-ui-components = {version = "0.4", features = ["secure-types", "qr-scanner"]}
+egui-elegance = "0.16"
+egui-elements = {version = "1", features = ["full"]}
 
 # Crypto
 sha3 = "0.12"

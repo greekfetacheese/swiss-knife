@@ -1,7 +1,7 @@
 use crate::gui::GUI;
 use egui::{Margin, RichText, Stroke, Ui, vec2};
 
-use zeus_widgets::Button;
+use egui_elements::Button;
 
 pub fn show(gui: &mut GUI, ui: &mut Ui) {
     ui.set_width(140.0);
@@ -20,7 +20,7 @@ pub fn show(gui: &mut GUI, ui: &mut Ui) {
             ui.spacing_mut().item_spacing.y = 10.0;
             ui.spacing_mut().button_padding = vec2(8.0, 6.0);
 
-            let text_size = gui.theme.text_sizes.normal;
+            let text_size = gui.theme.typography.normal;
             let button_size = vec2(80.0, 30.0);
 
             let is_open = gui.file_encryption_ui.is_open();

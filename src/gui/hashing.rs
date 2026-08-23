@@ -3,16 +3,14 @@ use eframe::egui::{
     Align, Align2, FontId, Frame, Layout, Margin, Order, RichText, ScrollArea, Spinner, Ui, Window,
     vec2,
 };
+use egui_elements::{Button, ComboBox, Label, Modal, QrImage, SecureTextEdit, Theme};
 use hmac::digest::block_api::BlockSizeUser;
 use hmac::{KeyInit, Mac, SimpleHmac};
-use ncrypt_me::secure_types::SecureString;
+use ncrypt_me::secure_types::{SecureString, Zeroize};
 use sha3::{Digest, Sha3_224, Sha3_256, Sha3_384, Sha3_512};
-use zeus_theme::Theme;
-use zeus_ui_components::QrImage;
-use zeus_widgets::{Button, ComboBox, Label, Modal, SecureTextEdit, Zeroize};
 
 #[cfg(target_os = "linux")]
-use zeus_ui_components::QRScanner;
+use egui_elements::QRScanner;
 
 const MAX_ROUNDS: u64 = 10_000;
 
@@ -144,7 +142,7 @@ impl TextHashingUi {
                         ui.vertical(|ui| {
                             ui.spacing_mut().item_spacing.y = 3.0;
                             let text =
-                                RichText::new("Rounds (Max = 10,000)").size(theme.text_sizes.small);
+                                RichText::new("Rounds (Max = 10,000)").size(theme.typography.small);
                             ui.label(text);
 
                             let rounds = self.rounds;
@@ -154,7 +152,7 @@ impl TextHashingUi {
                                 .visuals(theme.text_edit_visuals())
                                 .desired_width(50.0)
                                 .margin(Margin::same(5))
-                                .font(FontId::proportional(theme.text_sizes.small))
+                                .font(FontId::proportional(theme.typography.small))
                                 .show(ui);
 
                             let new_rounds = rounds_str.parse::<u64>().unwrap_or(1);
@@ -171,7 +169,7 @@ impl TextHashingUi {
                     ui.vertical_centered(|ui| {
                         ui.spacing_mut().item_spacing.y = 3.0;
                         let text =
-                            RichText::new("HMAC Key (optional)").size(theme.text_sizes.normal);
+                            RichText::new("HMAC Key (optional)").size(theme.typography.normal);
                         ui.label(text);
 
                         let visuals = theme.text_edit_visuals();
@@ -180,12 +178,12 @@ impl TextHashingUi {
                                 .id_salt("hmac_key")
                                 .hint_text(
                                     RichText::new("Leave empty for plain hash")
-                                        .size(theme.text_sizes.small),
+                                        .size(theme.typography.small),
                                 )
                                 .visuals(visuals)
                                 .desired_width(300.0)
                                 .margin(Margin::same(10))
-                                .font(FontId::proportional(theme.text_sizes.small))
+                                .font(FontId::proportional(theme.typography.small))
                                 .show(ui);
 
                             if res.response.changed() {
@@ -197,7 +195,7 @@ impl TextHashingUi {
 
                     self.hmac_len = hmac_len;
 
-                    ui.label(RichText::new("Input Text").size(theme.text_sizes.large));
+                    ui.label(RichText::new("Input Text").size(theme.typography.large));
 
                     let visuals = theme.text_edit_visuals();
 
@@ -211,7 +209,7 @@ impl TextHashingUi {
                                     .desired_width(300.0)
                                     .desired_rows(4)
                                     .margin(Margin::same(10))
-                                    .font(FontId::proportional(theme.text_sizes.small));
+                                    .font(FontId::proportional(theme.typography.small));
                                 let output = text_edit.show(ui);
                                 if output.response.changed() {
                                     should_calculate = true;
@@ -221,7 +219,7 @@ impl TextHashingUi {
 
                         #[cfg(target_os = "linux")]
                         {
-                            let text = RichText::new("Scan QR Code").size(theme.text_sizes.small);
+                            let text = RichText::new("Scan QR Code").size(theme.typography.small);
                             let button = Button::new(text).visuals(theme.button_visuals());
                             if ui.add(button).clicked() {
                                 self.qr_scanner.open(ui.ctx().clone());
@@ -249,7 +247,7 @@ impl TextHashingUi {
 
                     let size = vec2(100.0, 15.0);
                     ui.allocate_ui_with_layout(size, Layout::left_to_right(Align::Center), |ui| {
-                        ui.label(RichText::new(output_label).size(theme.text_sizes.large));
+                        ui.label(RichText::new(output_label).size(theme.typography.large));
 
                         if self.hash_calculating {
                             ui.add(Spinner::new().size(15.0).color(theme.colors.text));
@@ -262,7 +260,7 @@ impl TextHashingUi {
                             .desired_width(300.0)
                             .desired_rows(4)
                             .margin(Margin::same(10))
-                            .font(FontId::proportional(theme.text_sizes.small));
+                            .font(FontId::proportional(theme.typography.small));
                         text_edit.show(ui);
                     });
 
@@ -273,7 +271,7 @@ impl TextHashingUi {
 
                         let btn_size = vec2(100.0, 30.0);
                         let visuals = theme.button_visuals();
-                        let text = RichText::new("Copy").size(theme.text_sizes.normal);
+                        let text = RichText::new("Copy").size(theme.typography.normal);
                         let button = Button::new(text).visuals(visuals).min_size(btn_size);
 
                         if ui.add_enabled(!self.hash_calculating, button).clicked() {
@@ -282,7 +280,7 @@ impl TextHashingUi {
                             })
                         }
 
-                        let text = RichText::new("QR Code").size(theme.text_sizes.normal);
+                        let text = RichText::new("QR Code").size(theme.typography.normal);
                         let button = Button::new(text).visuals(visuals).min_size(btn_size);
 
                         if ui.add_enabled(!self.hash_calculating, button).clicked() {
@@ -322,14 +320,14 @@ impl TextHashingUi {
                         }
 
                         if let Some(err) = self.output_qr.error() {
-                            ui.label(RichText::new(err.to_string()).size(theme.text_sizes.normal));
+                            ui.label(RichText::new(err.to_string()).size(theme.typography.normal));
                             return;
                         }
 
                         let image = self.output_qr.image();
                         ui.add(image.fit_to_exact_size(vec2(250.0, 250.0)));
 
-                        let text = RichText::new("Close").size(theme.text_sizes.normal);
+                        let text = RichText::new("Close").size(theme.typography.normal);
                         let button = Button::new(text).visuals(theme.button_visuals());
                         if ui.add(button).clicked() {
                             self.show_qr = false;
@@ -446,7 +444,7 @@ impl TextHashingUi {
     }
 
     fn select_algorithm(&mut self, theme: &Theme, ui: &mut Ui) {
-        let label_text = RichText::new(self.algorithm.to_string()).size(theme.text_sizes.normal);
+        let label_text = RichText::new(self.algorithm.to_string()).size(theme.typography.normal);
         let label = Label::new(label_text, None);
         let visuals = theme.combo_box_visuals();
 
@@ -462,7 +460,7 @@ impl TextHashingUi {
                     let value = ui.selectable_value(
                         &mut self.algorithm,
                         selected_algorithm.clone(),
-                        RichText::new(selected_algorithm.to_string()).size(theme.text_sizes.normal),
+                        RichText::new(selected_algorithm.to_string()).size(theme.typography.normal),
                     );
 
                     if value.clicked() {

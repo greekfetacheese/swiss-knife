@@ -1,8 +1,7 @@
 use egui::{Order, RichText, Ui, vec2};
+use egui_elements::{Button, Modal, Theme};
 use elegance::{Badge, BadgeTone, Slider};
 use ncrypt_me::Argon2;
-use zeus_theme::Theme;
-use zeus_widgets::{Button, Modal};
 
 const MIN_M_COST: u32 = 64_000;
 const MIN_T_COST: u32 = 8;
@@ -71,14 +70,14 @@ impl Argon2Settings {
 
                 let mem_fmt = |mb: f64| format!("{:.0}", mb / 1000.0);
 
-                let q_mark = RichText::new("?").size(theme.text_sizes.normal);
+                let q_mark = RichText::new("?").size(theme.typography.normal);
 
                 ui.vertical_centered(|ui| {
                     ui.allocate_ui(slider_size, |ui| {
                         ui.horizontal(|ui| {
                             let info_tip = Badge::new(q_mark.clone(), BadgeTone::Info);
                             ui.label(
-                                RichText::new("Memory cost (MB):").size(theme.text_sizes.normal),
+                                RichText::new("Memory cost (MB):").size(theme.typography.normal),
                             );
                             ui.add(info_tip).on_hover_text(M_COST_TIP);
                         });
@@ -94,7 +93,7 @@ impl Argon2Settings {
                     ui.allocate_ui(slider_size, |ui| {
                         ui.horizontal(|ui| {
                             let info_tip = Badge::new(q_mark.clone(), BadgeTone::Info);
-                            ui.label(RichText::new("Iterations:").size(theme.text_sizes.normal));
+                            ui.label(RichText::new("Iterations:").size(theme.typography.normal));
                             ui.add(info_tip).on_hover_text(T_COST_TIP);
                         });
                     });
@@ -109,7 +108,7 @@ impl Argon2Settings {
                     ui.allocate_ui(slider_size, |ui| {
                         ui.horizontal(|ui| {
                             let info_tip = Badge::new(q_mark, BadgeTone::Info);
-                            ui.label(RichText::new("Parallelism:").size(theme.text_sizes.normal));
+                            ui.label(RichText::new("Parallelism:").size(theme.typography.normal));
                             ui.add(info_tip).on_hover_text(P_COST_TIP);
                         });
                     });
@@ -124,7 +123,7 @@ impl Argon2Settings {
                     ui.add_space(20.0);
 
                     let size = vec2(ui.available_width() * 0.6, 35.0);
-                    let text = RichText::new("OK").size(theme.text_sizes.normal);
+                    let text = RichText::new("OK").size(theme.typography.normal);
                     let button = Button::new(text).visuals(button_visuals).min_size(size);
 
                     if ui.add(button).clicked() {

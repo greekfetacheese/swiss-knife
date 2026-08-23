@@ -11,6 +11,4 @@ pub fn show(gui: &mut GUI, ui: &mut Ui) {
 
     gui.msg_window.show(theme, ui);
     gui.loading_window.show(theme, ui);
-
-    gui.inject_elegance_theme(ui.ctx());
 }

@@ -1,7 +1,7 @@
-use egui::{Color32, Context, Order, Ui, vec2};
+use egui::{Context, Order, Ui, vec2};
+use egui_elements::{Theme, ThemeKind};
 use lazy_static::lazy_static;
 use std::sync::{Arc, RwLock};
-use zeus_theme::{Theme, ThemeKind};
 
 pub mod app;
 pub mod argon2;
@@ -15,48 +15,8 @@ use file_encrypt::FileEncryptionUi;
 use hashing::TextHashingUi;
 use modals::*;
 
-use elegance::Theme as EleganceTheme;
-
 lazy_static! {
     pub static ref SHARED_GUI: SharedGUI = SharedGUI::default();
-}
-
-pub fn elegance_theme_key() -> egui::Id {
-    egui::Id::new("elegance::theme")
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-struct EleganceThemeKey {
-    dark: bool,
-    bg: Color32,
-    widget_bg: Color32,
-    border: Color32,
-    text: Color32,
-    text_muted: Color32,
-    accent: Color32,
-    info: Color32,
-    success: Color32,
-    error: Color32,
-    warning: Color32,
-}
-
-impl EleganceThemeKey {
-    fn from_theme(theme: &Theme) -> Self {
-        let c = &theme.colors;
-        Self {
-            dark: theme.dark_mode,
-            bg: c.bg,
-            widget_bg: c.widget_bg,
-            border: c.border,
-            text: c.text,
-            text_muted: c.text_muted,
-            accent: c.accent,
-            info: c.info,
-            success: c.success,
-            error: c.error,
-            warning: c.warning,
-        }
-    }
 }
 
 #[derive(Clone)]
@@ -100,7 +60,6 @@ pub struct GUI {
     pub text_hashing_ui: TextHashingUi,
     pub loading_window: LoadingWindow,
     pub msg_window: MsgWindow,
-    injected_elegance_key: Option<EleganceThemeKey>,
 }
 
 impl Default for GUI {
@@ -115,7 +74,6 @@ impl Default for GUI {
             text_hashing_ui: TextHashingUi::new(),
             loading_window: LoadingWindow::new(),
             msg_window: MsgWindow::new(),
-            injected_elegance_key: None,
         }
     }
 }
@@ -139,49 +97,5 @@ impl GUI {
 
     pub fn show_central_panel(&mut self, ui: &mut Ui) {
         panels::central_panel::show(self, ui);
-    }
-
-    pub fn inject_elegance_theme(&mut self, ctx: &egui::Context) {
-        let key = EleganceThemeKey::from_theme(&self.theme);
-        if self.injected_elegance_key == Some(key) {
-            return;
-        }
-
-        let c = &self.theme.colors;
-        let mut pal = if key.dark {
-            elegance::Palette::charcoal()
-        } else {
-            elegance::Palette::frost()
-        };
-
-        pal.is_dark = key.dark;
-        pal.bg = c.bg;
-        pal.card = c.widget_bg;
-        pal.input_bg = c.widget_bg;
-        pal.border = c.border;
-        pal.text = c.text;
-        pal.text_muted = c.text_muted;
-        pal.text_faint = c.text_muted;
-        pal.focus = c.accent;
-        pal.blue = c.info;
-        pal.green = c.success;
-        pal.green_hover = c.success;
-        pal.red = c.error;
-        pal.red_hover = c.error;
-        pal.amber = c.warning;
-        pal.amber_hover = c.warning;
-        pal.purple = c.accent;
-        pal.purple_hover = c.accent;
-        pal.success = c.success;
-        pal.danger = c.error;
-        pal.warning = c.warning;
-
-        let elegance_theme = EleganceTheme {
-            palette: pal,
-            ..EleganceTheme::slate()
-        };
-
-        ctx.data_mut(|d| d.insert_temp(elegance_theme_key(), elegance_theme));
-        self.injected_elegance_key = Some(key);
     }
 }

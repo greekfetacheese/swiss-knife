@@ -15,9 +15,9 @@ pub struct SwissKnifeApp {
 
 impl SwissKnifeApp {
     pub fn new(cc: &CreationContext) -> Self {
-        let theme = SHARED_GUI.read(|gui| gui.theme.clone());
+        let mut theme = SHARED_GUI.read(|gui| gui.theme.clone());
 
-        cc.egui_ctx.set_global_style(theme.style.clone());
+        theme.install(&cc.egui_ctx);
 
         let app = Self {
             style_has_been_set: false,
@@ -74,7 +74,7 @@ impl eframe::App for SwissKnifeApp {
 
             // This is needed for Windows
             if !self.style_has_been_set {
-                let style = gui.theme.style.clone();
+                let style = gui.theme.style();
                 ui.set_global_style(style);
                 self.style_has_been_set = true;
             }

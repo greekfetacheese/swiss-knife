@@ -1,9 +1,9 @@
 use super::*;
 use eframe::egui::{Align, Align2, DroppedFileHandle, Frame, Label, Layout, RichText, Ui, Window};
-use ncrypt_me::{Credentials, decrypt::decrypt_data_unsecured, encrypt::encrypt_data_ref};
-use zeus_theme::Theme;
-use zeus_ui_components::CredentialsForm;
-use zeus_widgets::{Button, Zeroize};
+use egui_elements::{Button, CredentialsForm, Theme};
+use ncrypt_me::{
+    Credentials, decrypt::decrypt_data_unsecured, encrypt::encrypt_data_ref, zeroize::Zeroize,
+};
 
 const FILE_EXTENSION: &str = ".ncrypt";
 
@@ -62,7 +62,7 @@ impl FileEncryptionUi {
                     ui.spacing_mut().button_padding = vec2(10.0, 8.0);
 
                     let text = RichText::new("Drag and drop or select a file")
-                        .size(theme.text_sizes.normal);
+                        .size(theme.typography.normal);
                     let label = Label::new(text).wrap();
                     ui.scope(|ui| {
                         ui.add(label);
@@ -76,7 +76,7 @@ impl FileEncryptionUi {
                     });
 
                     let button =
-                        Button::new(RichText::new("Choose a File").size(theme.text_sizes.normal))
+                        Button::new(RichText::new("Choose a File").size(theme.typography.normal))
                             .visuals(theme.button_visuals());
                     if ui.add(button).clicked() {
                         if let Some(path) = rfd::FileDialog::new().pick_file() {
@@ -94,12 +94,12 @@ impl FileEncryptionUi {
                         if path.len() > 50 {
                             path = path.chars().take(50).collect::<String>() + "...";
                         }
-                        let file_text = RichText::new(path).size(theme.text_sizes.small).strong();
+                        let file_text = RichText::new(path).size(theme.typography.small).strong();
                         ui.label(file_text);
                     }
 
                     // Credentials
-                    ui.label(RichText::new("Enter Your Credentials").size(theme.text_sizes.large));
+                    ui.label(RichText::new("Enter Your Credentials").size(theme.typography.large));
 
                     let form_size = vec2(ui.available_width() * 0.6, 10.0);
                     self.credentials_form.set_min_size(form_size);
@@ -107,7 +107,7 @@ impl FileEncryptionUi {
 
                     ui.scope(|ui| {
                         ui.spacing_mut().button_padding = vec2(4.0, 4.0);
-                        self.credentials_form.show(theme, ui);
+                        self.credentials_form.show(ui);
                     });
 
                     let size = vec2(ui.available_width() * 0.6, 30.0);
@@ -115,7 +115,7 @@ impl FileEncryptionUi {
                         ui.spacing_mut().item_spacing.x = 20.0;
 
                         let btn_size = vec2(100.0, 30.0);
-                        let text = RichText::new("Encrypt").size(theme.text_sizes.normal);
+                        let text = RichText::new("Encrypt").size(theme.typography.normal);
                         let visuals = theme.button_visuals();
                         let button = Button::new(text).visuals(visuals).min_size(btn_size);
 
@@ -128,7 +128,7 @@ impl FileEncryptionUi {
                             encrypt(credentials, file_path);
                         }
 
-                        let text = RichText::new("Decrypt").size(theme.text_sizes.normal);
+                        let text = RichText::new("Decrypt").size(theme.typography.normal);
                         let visuals = theme.button_visuals();
                         let button = Button::new(text).visuals(visuals).min_size(btn_size);
 
@@ -141,7 +141,7 @@ impl FileEncryptionUi {
                             decrypt(credentials, file_path);
                         }
 
-                        let text = RichText::new("Settings").size(theme.text_sizes.normal);
+                        let text = RichText::new("Settings").size(theme.typography.normal);
                         let button = Button::new(text).visuals(visuals).min_size(btn_size);
 
                         if ui.add(button).clicked() {
