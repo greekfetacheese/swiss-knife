@@ -1,45 +1,47 @@
 use crate::gui::GUI;
-use egui::{Margin, RichText, Stroke, Ui, vec2};
+use egui::{RichText, Shadow, Stroke, Ui, vec2};
 
-use egui_elements::Button;
+use egui_elements::{Frame as Frame2, Label};
 
 pub fn show(gui: &mut GUI, ui: &mut Ui) {
     ui.set_width(140.0);
 
     let theme = &gui.theme;
 
-    let color = theme.colors.hover;
-    let stroke = Stroke::new(1.0, color);
-    let frame = theme
-        .frame2
-        .inner_margin(Margin::symmetric(0, 10))
-        .stroke(stroke);
+    ui.vertical(|ui| {
+        ui.spacing_mut().item_spacing = vec2(0.0, theme.spacing.xs);
 
-    frame.show(ui, |ui| {
-        ui.vertical_centered(|ui| {
-            ui.spacing_mut().item_spacing.y = 10.0;
-            ui.spacing_mut().button_padding = vec2(8.0, 6.0);
+        let text_size = theme.typography.normal;
 
-            let text_size = gui.theme.typography.normal;
-            let button_size = vec2(80.0, 30.0);
+        let mut visuals = theme.frame2_visuals();
+        visuals.bg = theme.frame1.fill;
+        visuals.border = Stroke::NONE;
+        visuals.shadow = Shadow::NONE;
 
-            let is_open = gui.file_encryption_ui.is_open();
-            let button = Button::selectable(is_open, RichText::new("Encrypt").size(text_size))
-                .min_size(button_size);
+        let frame = Frame2::from_egui(theme.frame2)
+            .interactive(true)
+            .fill_width(true)
+            .visuals(visuals)
+            .corner_radius(0);
 
-            if ui.add(button).clicked() {
-                gui.file_encryption_ui.open();
-                gui.text_hashing_ui.close();
-            }
-
-            let is_open = gui.text_hashing_ui.is_open();
-            let button = Button::selectable(is_open, RichText::new("Hash").size(text_size))
-                .min_size(button_size);
-
-            if ui.add(button).clicked() {
-                gui.text_hashing_ui.open();
-                gui.file_encryption_ui.close();
-            }
+        let is_open = gui.file_encryption_ui.is_open();
+        let encrypt = frame.selected(is_open).show(ui, |ui| {
+            ui.add(Label::new(RichText::new("Encrypt").size(text_size), None).interactive(false));
         });
+
+        if encrypt.response.clicked() {
+            gui.file_encryption_ui.open();
+            gui.text_hashing_ui.close();
+        }
+
+        let is_open = gui.text_hashing_ui.is_open();
+        let hash = frame.selected(is_open).show(ui, |ui| {
+            ui.add(Label::new(RichText::new("Hash").size(text_size), None).interactive(false));
+        });
+
+        if hash.response.clicked() {
+            gui.text_hashing_ui.open();
+            gui.file_encryption_ui.close();
+        }
     });
 }
