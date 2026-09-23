@@ -2,7 +2,7 @@ use super::*;
 use eframe::egui::{Align, Align2, DroppedFileHandle, Frame, Label, Layout, RichText, Ui, Window};
 use egui_elements::{Button, CredentialsForm, Theme};
 use ncrypt_me::{
-    Credentials, decrypt::decrypt_data_unsecured, encrypt::encrypt_data_ref, zeroize::Zeroize,
+    Credentials, decrypt::decrypt_data_unsecured, encrypt::encrypt_data_ref, secure_types::Zeroize,
 };
 
 const FILE_EXTENSION: &str = ".ncrypt";

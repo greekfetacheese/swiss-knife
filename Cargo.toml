@@ -8,8 +8,13 @@ edition = "2024"
 
 # GUI
 egui = "0.36"
-eframe = {version = "0.36", features = ["wgpu"]}
-egui_extras = { version = "0.36", features = ["image"] }
+eframe = { version = "=0.36", default-features = false, features = [
+    "wgpu",
+    "default_fonts",
+    "wayland",
+    "x11",
+] }
+egui_extras = { version = "0.36", features = ["image", "svg"] }
 egui-elegance = "0.16"
 egui-elements = {version = "1", features = ["full"]}
 
@@ -18,7 +23,7 @@ sha3 = "0.12"
 hmac = {version = "0.13.0", features = ["zeroize"]}
 hybrid-array = {version = "0.4.14", features = ["zeroize"]}
 hex = "0.4"
-ncrypt-me = "0.3"
+ncrypt-me = "0.4"
 
 # Misc
 rfd = "0.17"

@@ -1,7 +1,7 @@
 use egui::{Context, Order, Ui, vec2};
 use egui_elements::{Theme, ThemeKind};
 use lazy_static::lazy_static;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex};
 
 pub mod app;
 pub mod argon2;
@@ -20,17 +20,17 @@ lazy_static! {
 }
 
 #[derive(Clone)]
-pub struct SharedGUI(Arc<RwLock<GUI>>);
+pub struct SharedGUI(Arc<Mutex<GUI>>);
 
 impl SharedGUI {
     /// Shared access to the [GUI]
     pub fn read<R>(&self, reader: impl FnOnce(&GUI) -> R) -> R {
-        reader(&self.0.read().unwrap())
+        reader(&self.0.lock().unwrap())
     }
 
     /// Exclusive mutable access to the [GUI]
     pub fn write<R>(&self, writer: impl FnOnce(&mut GUI) -> R) -> R {
-        writer(&mut self.0.write().unwrap())
+        writer(&mut self.0.lock().unwrap())
     }
 
     pub fn request_repaint(&self) {
@@ -48,7 +48,7 @@ impl SharedGUI {
 
 impl Default for SharedGUI {
     fn default() -> Self {
-        Self(Arc::new(RwLock::new(GUI::default())))
+        Self(Arc::new(Mutex::new(GUI::default())))
     }
 }
 
