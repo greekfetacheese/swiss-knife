@@ -3,6 +3,7 @@ use eframe::egui::{
     Align, Align2, FontId, Frame, Layout, Margin, Order, RichText, ScrollArea, Spinner, Ui, Window,
     vec2,
 };
+use egui_elements::components::QrEncoding;
 use egui_elements::{Button, ComboBox, Label, Modal, QrImage, SecureTextEdit, Theme};
 use hmac::digest::block_api::BlockSizeUser;
 use hmac::{KeyInit, Mac, SimpleHmac};
@@ -13,6 +14,11 @@ use sha3::{Digest, Sha3_224, Sha3_256, Sha3_384, Sha3_512};
 use egui_elements::QRScanner;
 
 const MAX_ROUNDS: u64 = 10_000;
+
+const QR_IMAGE_SIZE: f32 = 250.0;
+
+const QR_MODAL_WIDTH: f32 = 300.0;
+const QR_MODAL_HEIGHT: f32 = 300.0;
 
 #[derive(Clone, PartialEq, Eq)]
 pub enum HashAlgorithm {
@@ -304,13 +310,13 @@ impl TextHashingUi {
             .backdrop_order(Order::Tooltip)
             .content_order(Order::Debug)
             .show(ui.ctx(), |ui| {
-                ui.set_width(300.0);
-                ui.set_max_height(300.0);
+                ui.set_width(QR_MODAL_WIDTH);
+                ui.set_max_height(QR_MODAL_HEIGHT);
 
                 ui.spacing_mut().item_spacing.y = 15.0;
                 ui.spacing_mut().button_padding = vec2(10.0, 8.0);
 
-                let frame = Frame::new().inner_margin(20);
+                let frame = Frame::new().inner_margin(10);
 
                 frame.show(ui, |ui| {
                     ui.vertical_centered(|ui| {
@@ -325,7 +331,8 @@ impl TextHashingUi {
                         }
 
                         let image = self.output_qr.image();
-                        ui.add(image.fit_to_exact_size(vec2(250.0, 250.0)));
+                        let size = self.output_qr.image_size_pt(ui.ctx().pixels_per_point());
+                        ui.add(image.fit_to_exact_size(size));
 
                         let text = RichText::new("Close").size(theme.typography.normal);
                         let button = Button::new(text).visuals(theme.button_visuals());
@@ -347,7 +354,12 @@ impl TextHashingUi {
             let mut data = output.unlock_str(|output_hash| output_hash.to_owned());
 
             let uri = format!("output_hash_uri");
-            let qr = QrImage::new(&data, uri);
+            let encoding = QrEncoding  {
+                target_px: QR_IMAGE_SIZE as u32,
+                ..Default::default()
+            };
+
+            let qr = QrImage::with_encoding(&data, uri, encoding);
             data.zeroize();
 
             SHARED_GUI.write(|gui| {
