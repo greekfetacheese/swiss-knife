@@ -40,7 +40,7 @@ fn main() -> Result<(), eframe::Error> {
     };
 
     eframe::run_native(
-        "Swiss Knife 1.1.3",
+        "Swiss Knife 1.2.0",
         options,
         Box::new(|cc| {
             egui_extras::install_image_loaders(&cc.egui_ctx);
